@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "196295159582",
+    "project_id": "evird-htiw-erehps",
+    "storage_bucket": "evird-htiw-erehps.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:196295159582:android:10e12c6f9781926db1a30f",
+        "android_client_info": {
+          "package_name": "evirdhtiwerehps.sphere_with_drive"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "196295159582-jib9uq605g3s676t1ep88ka61v96ifuv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "evirdhtiwerehps.sphere_with_drive",
+            "certificate_hash": "5713f60d5a92ca83777206a7f8239e9a42cfaebd"
+          }
+        },
+        {
+          "client_id": "196295159582-r30u66rvju02urk6n88j2b4gvvsnolqu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBByeZ39kdI600kB003wXAlL3rYad_Qbu4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "196295159582-r30u66rvju02urk6n88j2b4gvvsnolqu.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "196295159582-fqjve6jv4es39l11ia58ukf0vcp5ot87.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "evird-htiw-erehps.sphereWithDrive"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
