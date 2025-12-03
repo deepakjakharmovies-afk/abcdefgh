@@ -29,7 +29,9 @@ class AuthService with ChangeNotifier {
     clientId: kIsWeb ? _webClientId : null,
     scopes: [
       'email',
-      drive.DriveApi.driveFileScope, // Required scope for file access
+      drive
+          .DriveApi
+          .driveScope, // Required to access shared files/folders created by others
     ],
   );
 

@@ -3,12 +3,17 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
     <uses-permission android:name="android.permission.CAMERA"/>
     
     <application
         android:label="sphere_with_drive"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data
+            android:name="com.google.android.gms.API_KEY"
+            android:value="AIzaSyBhEkd1RldBhI83z1FrmtsypFNwwnxJDik"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"

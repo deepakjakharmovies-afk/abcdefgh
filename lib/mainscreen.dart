@@ -124,13 +124,22 @@ class joinShereDialog extends StatelessWidget {
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: () {
-            // final link  = TextEditingController().text;
-            Provider.of<DriveService>(
+          onPressed: () async {
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            final navigator = Navigator.of(context);
+
+            final result = await Provider.of<DriveService>(
               context,
               listen: false,
-            ).joinSphereFromLink(link.text);
-            Navigator.pop(context);
+            ).joinSphereFromLink(link.text.trim());
+
+            navigator.pop();
+
+            if (result != null) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(content: Text('Successfully joined: ${result.name}')),
+              );
+            }
           },
           child: const Text('Join'),
         ),

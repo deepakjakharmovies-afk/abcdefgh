@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
+import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sphere_with_drive/auth_service.dart';
@@ -168,24 +170,66 @@ class DriveService with ChangeNotifier {
     notifyListeners();
 
     try {
-      // Query for all folders (Spheres) inside the root folder
+      // Query for folders AND shortcuts inside the root folder
       final fileList = await _driveApi!.files.list(
-        q: "mimeType='application/vnd.google-apps.folder' and '$_snapSphereRootId' in parents and trashed=false",
+        q: "(mimeType='application/vnd.google-apps.folder' or mimeType='application/vnd.google-apps.shortcut') and '$_snapSphereRootId' in parents and trashed=false",
         spaces: 'drive',
-        $fields: 'files(id, name, createdTime, owners)',
+        $fields:
+            'files(id, name, createdTime, owners, mimeType, shortcutDetails)',
       );
-      _spheres =
-          fileList.files
-              ?.map(
-                (file) => Sphere(
-                  id: file.id!,
-                  name: file.name!,
-                  ownerEmail: file.owners?.first.emailAddress ?? 'Unknown',
-                  createdAt: file.createdTime?.toLocal() ?? DateTime.now(),
-                ),
-              )
-              .toList() ??
-          [];
+
+      List<Sphere> loadedSpheres = [];
+
+      if (fileList.files != null) {
+        for (var file in fileList.files!) {
+          if (file.mimeType == 'application/vnd.google-apps.shortcut') {
+            // Handle Shortcut: Resolve the target folder
+            final targetId = file.shortcutDetails?.targetId;
+            if (targetId != null) {
+              try {
+                // Fetch the actual target folder details
+                final target =
+                    await _driveApi!.files.get(
+                          targetId,
+                          $fields: 'id, name, createdTime, owners, mimeType',
+                        )
+                        as drive.File;
+
+                // Only add if it's a folder
+                if (target.mimeType == 'application/vnd.google-apps.folder') {
+                  loadedSpheres.add(
+                    Sphere(
+                      id: target.id!,
+                      name: target.name!, // Use target's name
+                      ownerEmail:
+                          target.owners?.first.emailAddress ?? 'Unknown',
+                      createdAt:
+                          target.createdTime?.toLocal() ?? DateTime.now(),
+                    ),
+                  );
+                }
+              } catch (e) {
+                print('Could not resolve shortcut target $targetId: $e');
+              }
+            }
+          } else {
+            // Handle Regular Folder
+            loadedSpheres.add(
+              Sphere(
+                id: file.id!,
+                name: file.name!,
+                ownerEmail: file.owners?.first.emailAddress ?? 'Unknown',
+                createdAt: file.createdTime?.toLocal() ?? DateTime.now(),
+              ),
+            );
+          }
+        }
+      }
+
+      _spheres = loadedSpheres;
+      // Remove duplicates just in case (e.g. multiple shortcuts to same folder)
+      final ids = <String>{};
+      _spheres.retainWhere((x) => ids.add(x.id));
 
       _spheres.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
@@ -200,51 +244,85 @@ class DriveService with ChangeNotifier {
 
   Future<drive.File?> joinSphereFromLink(String link) async {
     try {
-      // Extract the folder ID (handles both folder & file links)
+      // Extract the folder ID
+      String? fileId;
       final RegExp regExp = RegExp(r'[-\w]{25,}');
+
       final match = regExp.firstMatch(link);
-      if (match == null) throw Exception('Invalid Google Drive link');
-
-      final fileId = match.group(0)!;
-
-      // Try to fetch it normally
-      try {
-        final file = await _driveApi!.files.get(
-          fileId,
-          $fields: 'id,name,mimeType,webViewLink',
-        );
-        // print('✅ Joined sphere: ${file.name}');
-        return file as drive.File;
-      } on drive.DetailedApiRequestError catch (e) {
-        if (e.status == 404) {
-          print('⚠️ File not found. Trying to fix permissions...');
-        } else {
-          rethrow;
-        }
+      if (match != null) {
+        fileId = match.group(0);
+      } else if (link.length > 20) {
+        fileId = link;
       }
 
-      // If it failed (404), attempt to create a public permission
-      try {
-        await _driveApi!.permissions.create(
-          drive.Permission.fromJson({
-            'type': 'anyone',
-            'role': 'reader', // or 'writer' if you want uploads
-          }),
-          fileId,
-        );
-        print('🔓 Made folder public, retrying...');
+      if (fileId == null) throw Exception('Invalid Google Drive link');
 
-        final file = await _driveApi!.files.get(
-          fileId,
-          $fields: 'id,name,mimeType,webViewLink',
+      // 1. Check if we already have this sphere in our list
+      if (_spheres.any((s) => s.id == fileId)) {
+        print('Already joined this sphere.');
+        return await _driveApi!.files.get(
+              fileId,
+              $fields: 'id,name,mimeType,webViewLink',
+            )
+            as drive.File;
+      }
+
+      // 2. Fetch target to verify it exists and get name
+      final targetFile =
+          await _driveApi!.files.get(
+                fileId,
+                $fields: 'id,name,mimeType,webViewLink',
+              )
+              as drive.File;
+
+      if (targetFile.mimeType != 'application/vnd.google-apps.folder') {
+        throw Exception('Link is not a folder.');
+      }
+
+      // 3. Create a Shortcut in our SnapSphere root folder
+      // Check if shortcut already exists (to avoid duplicates if _spheres check failed)
+      final existingShortcuts = await _driveApi!.files.list(
+        q: "mimeType='application/vnd.google-apps.shortcut' and '$_snapSphereRootId' in parents and trashed=false",
+        $fields: 'files(id, shortcutDetails)',
+      );
+
+      bool shortcutExists =
+          existingShortcuts.files?.any(
+            (f) => f.shortcutDetails?.targetId == fileId,
+          ) ??
+          false;
+
+      if (!shortcutExists) {
+        final shortcut = drive.File();
+        shortcut.name = targetFile.name;
+        shortcut.mimeType = 'application/vnd.google-apps.shortcut';
+        shortcut.parents = [_snapSphereRootId!];
+        shortcut.shortcutDetails = drive.FileShortcutDetails()
+          ..targetId = fileId;
+
+        await _driveApi!.files.create(shortcut);
+        print('Created shortcut for sphere: ${targetFile.name}');
+      }
+
+      // 4. Refresh list
+      await fetchSpheres();
+
+      return targetFile;
+    } on drive.DetailedApiRequestError catch (e) {
+      if (e.status == 404) {
+        print('⚠️ File not found or permission denied.');
+        _authService.setError(
+          'Sphere not found or access denied. Ask the owner to share it with you.',
         );
-        // print('✅ Joined after making public: ${file.name}');
-        return file as drive.File;
-      } catch (e) {
-        print('❌ Could not make folder public: $e');
-        rethrow;
+        return null;
+      } else {
+        print('Error joining sphere (API): $e');
+        _authService.setError('Failed to join Sphere: ${e.message}');
+        return null;
       }
     } catch (e) {
+      print('Error joining sphere: $e');
+      _authService.setError('Failed to join Sphere.');
       return null;
     }
   }
@@ -355,8 +433,27 @@ class DriveService with ChangeNotifier {
     if (_driveApi == null || _authService.httpClient == null) return false;
 
     // 1. Get permission
-    if (await Permission.storage.request().isDenied) {
-      _authService.setError('Storage permission denied.');
+    bool hasPermission = false;
+
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      if (androidInfo.version.sdkInt >= 33) {
+        // Android 13+
+        final photos = await Permission.photos.request();
+        // Check for videos too if needed, but for now just photos
+        hasPermission = photos.isGranted || photos.isLimited;
+      } else {
+        // Android < 13
+        final storage = await Permission.storage.request();
+        hasPermission = storage.isGranted;
+      }
+    } else {
+      // iOS etc.
+      hasPermission = await Permission.photos.request().isGranted;
+    }
+
+    if (!hasPermission) {
+      _authService.setError('Permission denied. Cannot save photo.');
       return false;
     }
 
@@ -374,23 +471,17 @@ class DriveService with ChangeNotifier {
         );
       }
 
-      final directory = await getExternalStorageDirectory();
-      if (directory == null) {
-        _authService.setError('Cannot access external storage.');
+      // 3. Save to Gallery using gal
+      try {
+        await Gal.putImageBytes(response.bodyBytes, name: file.name);
+
+        print('Image saved to gallery successfully');
+        filePath = "Gallery"; // Just for UI feedback
+        return true;
+      } catch (saveError) {
+        print('Error saving to gallery: $saveError');
         return false;
       }
-
-      // 3. Save to a temporary location
-      filePath = '${directory.path}/${file.name}';
-      final saveFile = File(filePath);
-      await saveFile.writeAsBytes(response.bodyBytes);
-
-      // In a real Flutter app, you'd use a package like image_gallery_saver
-      // to save it directly to the native photo gallery. Since we removed
-      // that dependency due to build errors, we'll just log success.
-      print('File downloaded successfully to: $filePath');
-
-      return true;
     } catch (e) {
       print('Error downloading photo: $e');
       _authService.setError('Failed to download photo from Drive.');
