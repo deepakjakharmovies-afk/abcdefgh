@@ -1,5 +1,6 @@
 import 'package:sphere_with_drive/loadingfile.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 
@@ -63,22 +64,34 @@ class SnapSphereApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'SnapSphere (Drive)',
-        theme: ThemeData(
-          primarySwatch: Colors.indigo,
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-          fontFamily: 'Inter',
-          // Applying a cleaner input theme globally
-          inputDecorationTheme: const InputDecorationTheme(
+        theme: ThemeData.dark().copyWith(
+          scaffoldBackgroundColor: const Color(0xFF121212),
+          primaryColor: Colors.indigoAccent,
+          colorScheme: const ColorScheme.dark(
+            primary: Colors.indigoAccent,
+            secondary: Colors.tealAccent,
+            surface: Color(0xFF1E1E1E),
+          ),
+          textTheme: GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            centerTitle: true,
+          ),
+          floatingActionButtonTheme: const FloatingActionButtonThemeData(
+            backgroundColor: Colors.indigoAccent,
+            foregroundColor: Colors.white,
+          ),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: const Color(0xFF2C2C2C),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-              borderSide: BorderSide(color: Colors.indigo, width: 2),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(12)),
-              borderSide: BorderSide(color: Colors.grey, width: 1),
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.indigoAccent),
             ),
           ),
         ),

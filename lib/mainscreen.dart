@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:sphere_with_drive/auth_service.dart';
 import 'package:sphere_with_drive/drive_service.dart';
 import 'package:sphere_with_drive/gridveiw.dart'; // Retained for navigation
+import 'package:google_fonts/google_fonts.dart';
 
 // The data models are now in models.dart, so we'll remove the local Trip class
 // and use the DriveService data structure.
@@ -53,45 +54,87 @@ class _HomeScreenState extends State<HomeScreen> {
     final authService = Provider.of<AuthService>(context, listen: false);
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text('SnapSphere (Drive)'),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/snapsphere_logo.png',
+              height: 32,
+              errorBuilder: (c, e, s) =>
+                  const Icon(Icons.camera, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'SnapSphere',
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.bold,
+                fontSize: 24,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             onPressed: () => Provider.of<DriveService>(
               context,
               listen: false,
             ).fetchSpheres(),
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_rounded),
             onPressed: authService.signOut,
           ),
         ],
-      ),
-      body: const SphereListView(),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(left: 30.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          // spacing:,
-          children: [
-            FloatingActionButton(
-              onPressed: () => _joinShereDialog(context),
-              child: const Icon(Icons.group_sharp),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.black.withOpacity(0.8), Colors.transparent],
             ),
-            FloatingActionButton(
+          ),
+        ),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF121212), Color(0xFF1E1E2C)],
+          ),
+        ),
+        child: const SphereGridView(),
+      ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            FloatingActionButton.extended(
+              heroTag: 'join',
+              onPressed: () => _joinShereDialog(context),
+              icon: const Icon(Icons.group_add_rounded),
+              label: const Text('Join'),
+              backgroundColor: const Color(0xFF2C2C2C),
+              foregroundColor: Colors.white,
+            ),
+            const SizedBox(width: 16),
+            FloatingActionButton.extended(
+              heroTag: 'create',
               onPressed: () => _showCreateSphereDialog(context),
-              child: const Icon(Icons.add),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('New Sphere'),
+              backgroundColor: Colors.indigoAccent,
+              foregroundColor: Colors.white,
             ),
           ],
         ),
       ),
-      // persistentFooterButtons: [
-      //   Text('Logged in as: ${authService.currentUser?.email ?? 'Unknown'}'),
-      // ],
-      // floatingActionButton: FloatingActionButton(onPressed: () {},
-      // child: const Icon(Icon.join),),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
@@ -187,8 +230,8 @@ class _CreateLinkDilogeState extends State<CreateLinkDiloge> {
 }
 // --- 2. List View of Spheres (Drive Folders) ---
 
-class SphereListView extends StatelessWidget {
-  const SphereListView({super.key});
+class SphereGridView extends StatelessWidget {
+  const SphereGridView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -199,49 +242,120 @@ class SphereListView extends StatelessWidget {
     }
 
     if (driveService.spheres.isEmpty) {
-      return const Center(
-        child: Text('No SnapSpheres found. Create one to get started!'),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.photo_library_outlined,
+              size: 64,
+              color: Colors.grey[700],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No SnapSpheres yet',
+              style: GoogleFonts.outfit(fontSize: 20, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Create or join one to get started!',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
       );
     }
 
-    return ListView.builder(
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        100,
+        16,
+        100,
+      ), // Top padding for AppBar
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 0.85,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
       itemCount: driveService.spheres.length,
       itemBuilder: (context, index) {
         final sphere = driveService.spheres[index];
         return GestureDetector(
-          onLongPress: () =>
-              _whattodo(context, sphere.id), // Delete sphere on long press
-          //   if (link != null) {
-          //     _showlinkShareableLinkDialog(context,link);
-          //   } else {
-          //     ScaffoldMessenger.of(context).showSnackBar(
-          //       const SnackBar(content: Text('Failed to create shareable link.')),
-          //     );
-          //   }
-          // }
-          child: Card(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: ListTile(
-              leading: const Icon(
-                Icons.double_arrow_outlined,
-                color: Colors.indigo,
-                size: 55,
+          onLongPress: () => _whattodo(context, sphere.id),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PhotoGridScreen(sphere: sphere),
               ),
-              title: Text(
-                sphere.name,
-                style: const TextStyle(fontWeight: FontWeight.bold),
+            );
+          },
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF252525),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [const Color(0xFF2C2C2C), const Color(0xFF252525)],
               ),
-              subtitle: Text('Owner: ${sphere.ownerEmail}'),
-              // isThreeLine: true,
-              onTap: () {
-                // Navigate to the photo grid view, passing the Sphere ID (Drive Folder ID)
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PhotoGridScreen(sphere: sphere),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.withOpacity(0.1),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(
+                        Icons.folder_open_rounded,
+                        size: 48,
+                        color: Colors.indigoAccent.withOpacity(0.8),
+                      ),
+                    ),
                   ),
-                );
-              },
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        sphere.name,
+                        style: GoogleFonts.outfit(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.white,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        sphere.ownerEmail,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         );

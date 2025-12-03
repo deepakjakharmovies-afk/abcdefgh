@@ -127,7 +127,7 @@ class _BouncingBallLoadingScreenState extends State<BouncingBallLoadingScreen>
                   opacity: _logoAnimation.value,
                   child: ClipOval(
                     child: Image.asset(
-                      'assets/images/logo.png',
+                      'assets/images/snapsphere_logo.png',
                       width: 200,
                       height: 200,
                       fit: BoxFit.cover,
